@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111319">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<title>Mon QG</title>
+<style>
+  :root{--bg:#111319;--surface:#1B1E26;--ink:#E8EBF1;--muted:#9BA3B2;--line:#323846;--accent:#5C8FEB}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100dvh;display:grid;place-items:center;background:var(--bg);color:var(--ink);
+    font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px}
+  .carte{width:min(440px,100%);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;display:grid;gap:12px}
+  h1{margin:0;font-size:22px;letter-spacing:.5px}
+  p{margin:0;color:var(--muted);font-size:14px}
+  input{width:100%;padding:10px;border-radius:6px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit}
+  button{padding:10px;border:0;border-radius:6px;background:var(--accent);color:#fff;font:700 16px system-ui,sans-serif}
+  .err{color:#F0675B}
+</style>
+</head>
+<body>
+<div class="carte" id="carte"><h1>MON QG</h1><p>Chargement…</p></div>
+<script>
+// Page publique : aucune donnée ici. Elle charge l'open space depuis le dépôt GitHub PRIVÉ, avec ta clé gardée sur ce téléphone.
+const DEPOT = "Ewadrel/QG", FICHIER = "web/mobile.html";
+const lireCle = () => { try{ return localStorage.getItem("qg-gh") || ""; }catch(_){ return ""; } };
+function demander(erreur){
+  document.getElementById("carte").innerHTML = `<h1>MON QG</h1>
+    <p>Colle ta clé GitHub (elle reste uniquement sur ce téléphone).</p>
+    ${erreur ? `<p class="err">${erreur}</p>` : ""}
+    <form id="f" style="display:grid;gap:10px"><input id="cle" type="password" autocomplete="off" placeholder="github_pat_…" required>
+    <button>Ouvrir le QG</button></form>`;
+  document.getElementById("f").addEventListener("submit", e => { e.preventDefault();
+    try{ localStorage.setItem("qg-gh", document.getElementById("cle").value.trim()); }catch(_){}
+    ouvrir(); });
+}
+async function ouvrir(){
+  const cle = lireCle(); if(!cle) return demander("");
+  try{
+    const r = await fetch(`https://api.github.com/repos/${DEPOT}/contents/${FICHIER}?t=${Date.now()}`,
+      {cache:"no-store", headers:{"Authorization":"Bearer "+cle, "Accept":"application/vnd.github.raw"}});
+    if(r.status === 401 || r.status === 404){ try{ localStorage.removeItem("qg-gh"); }catch(_){} return demander("Clé refusée par GitHub : vérifie-la."); }
+    if(!r.ok) throw new Error("GitHub " + r.status);
+    const html = await r.text();
+    document.open(); document.write(html); document.close();
+  }catch(e){ document.getElementById("carte").innerHTML = `<h1>MON QG</h1><p class="err">Impossible de charger le QG (${e.message}). Vérifie ta connexion.</p><button onclick="location.reload()">Réessayer</button>`; }
+}
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+ouvrir();
+</script>
+</body>
+</html>
